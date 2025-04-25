@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
 from pathlib import Path
+import psycopg2
+from datetime import datetime
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -37,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'example'
 ]
 
@@ -48,6 +51,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
 ]
 
 ROOT_URLCONF = 'api.urls'
@@ -119,3 +123,29 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+def sendResponse(action, resultCode, resultMessage, data):
+    response = {}
+    response["action"] = action
+    response["data"] = data
+    response["resultCode"] = resultCode
+    response["resultMessage"] = resultMessage
+    response["size"] = len(data)
+    response["curdate"] = datetime.now().strftime("%Y/%m/%d %H:%M:%S")
+    return response
+
+
+def connectDB():
+    conn = psycopg2.connect(
+        host="pg-c90b446-mandakh-5e3d.l.aivencloud.com",
+        dbname="defaultdb",
+        user="avnadmin",
+        password="AVNS_sCR9Pux3myegi5tLmnQ",
+        # password="paasissw",
+        port=24306
+    )
+    return conn
+
+
+def disconnectDB(conn):
+    conn.close()
