@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 
 from pathlib import Path
 import psycopg2
+
 from datetime import datetime
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -141,7 +142,6 @@ def connectDB():
         dbname="defaultdb",
         user="avnadmin",
         password="AVNS_sCR9Pux3myegi5tLmnQ",
-        # password="paasissw",
         port=24306
     )
     return conn
