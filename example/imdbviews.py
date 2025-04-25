@@ -25,6 +25,21 @@ def dt_class(request):
     resp = sendResponse(action, 200, "Success", respData)
     return resp
 
+def dt_connect_status(request):
+    jsons = json.loads(request.body)
+    action = jsons['action']
+    
+    try:
+        conn = connectDB()
+        disconnectDB(conn)
+        respData = [{"status": "DB connected successfully"}]
+        resp = sendResponse(action, 200, "Success", respData)
+    except Exception as e:
+        respData = [{"status": "DB connection failed", "error": str(e)}]
+        resp = sendResponse(action, 500, "Error", respData)
+    
+    return resp
+
 
 @csrf_exempt
 def checkService(request):
@@ -52,6 +67,9 @@ def checkService(request):
             return (JsonResponse(result))
         elif(action == 'class'): #
             result = dt_class(request)
+            return (JsonResponse(result))
+        elif(action == 'dbcheck'):
+            result = dt_connect_status(request)
             return (JsonResponse(result))
         else:
             action = action
