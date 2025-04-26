@@ -404,7 +404,7 @@ def dt_add_wishlist(request):
 # ///
 
 def dt_get_all_movies(request):
-    action = json.loads(request.body).get('action', 'get_all_movies')
+    action = request.POST.get('action')
     try:
         myConn = connectDB()
         cursor = myConn.cursor()
@@ -435,9 +435,8 @@ def dt_get_all_movies(request):
 # ///
 
 def dt_get_movies_by_cat(request):
-    data = json.loads(request.body)
-    action = data.get('action', 'get_movies_by_cat')
-    cat_id = data.get('cat_id')
+    action = request.POST.get('action')
+    cat_id = request.POST.get('cat_id')
 
     if not cat_id:
         return JsonResponse(sendResponse(action, 400, "cat_id is required", []))
@@ -465,9 +464,8 @@ def dt_get_movies_by_cat(request):
 # ///
 
 def dt_get_movie_detail(request):
-    data = json.loads(request.body)
-    action = data.get('action', 'get_movie_detail')
-    movie_id = data.get('movie_id')
+    action = request.POST.get('action')
+    movie_id = request.POST.get('movie_id')
 
     if not movie_id:
         return JsonResponse(sendResponse(action, 400, "movie_id is required", []))
