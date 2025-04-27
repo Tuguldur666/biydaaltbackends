@@ -15,9 +15,10 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from example import imdbviews
+from example import imdbviews,petviews
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('apiimdb/', imdbviews.checkService),
+    path('apipet/', petviews.checkService),
 ]
