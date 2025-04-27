@@ -383,11 +383,78 @@ def dt_get_pets_by_adopted(request):
 
     return JsonResponse(resp)
 
+# 11. Get All Species (dt_get_all_species)
+def dt_get_all_species(request):
+    action = request.POST.get('action')
+
+    try:
+        myConn = connectDB2()
+        cursor = myConn.cursor()
+
+        query = """
+            SELECT id, name FROM t_species
+        """
+        cursor.execute(query)
+        columns = cursor.description
+        result = [{columns[i][0]: value for i, value in enumerate(row)} for row in cursor.fetchall()]
+        resp = sendResponse(action, 200, "Success", result)
+    except Exception as e:
+        resp = sendResponse(action, 500, f"Database error: {str(e)}", [])
+    finally:
+        cursor.close()
+        disconnectDB(myConn)
+
+    return JsonResponse(resp)
+# //////////
+# 12. Get All Breeds by Species (dt_get_breeds_by_species)
+def dt_get_breeds_by_species(request):
+    action = request.POST.get('action')
+
+    try:
+        species_id = request.POST.get('species_id')
+    except Exception as e:
+        respData = []
+        resp = sendResponse(action, 1001, f"Request data missing or malformed: {str(e)}", respData)
+        return JsonResponse(resp)
+
+    try:
+        myConn = connectDB2()
+        cursor = myConn.cursor()
+
+        query = """
+            SELECT id, name FROM t_breeds WHERE species_id = %s
+        """
+        cursor.execute(query, (species_id,))
+        columns = cursor.description
+        result = [{columns[i][0]: value for i, value in enumerate(row)} for row in cursor.fetchall()]
+        resp = sendResponse(action, 200, "Success", result)
+    except Exception as e:
+        resp = sendResponse(action, 500, f"Database error: {str(e)}", [])
+    finally:
+        cursor.close()
+        disconnectDB(myConn)
+
+    return JsonResponse(resp)
 
 # Route handler (checkService)
 @csrf_exempt
 def checkService(request):
-    action = request.POST.get('action')
+    if request.content_type.startswith('multipart/form-data'):
+        action = request.POST.get('action')
+    else:
+        try:
+            body = json.loads(request.body)
+            action = body.get('action')
+        except Exception:
+            action = None
+
+    if not action:
+        return JsonResponse({
+            "action": None,
+            "status_code": 1000,
+            "message": "Invalid action",
+            "data": []
+        })
 
     if request.content_type.startswith('multipart/form-data'):
         if action == 'add_pet':
@@ -418,6 +485,10 @@ def checkService(request):
             return dt_get_pets_by_breed(request)
         elif action == 'get_pets_by_adopted':
             return dt_get_pets_by_adopted(request)
+        elif action == 'get_all_species':
+            return dt_get_all_species(request)
+        elif action == 'get_breeds_by_species':
+            return dt_get_breeds_by_species(request)
         else:
             return JsonResponse({
                 "action": action,
