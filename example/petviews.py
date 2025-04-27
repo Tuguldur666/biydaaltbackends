@@ -385,51 +385,67 @@ def dt_get_pets_by_adopted(request):
 
 # 11. Get All Species (dt_get_all_species)
 def dt_get_all_species(request):
-    action = request.POST.get('action')
+    # support JSON or form-encoded
+    if request.content_type == 'application/json':
+        try:
+            body = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse(sendResponse(None, 400, "Invalid JSON", []))
+        action = body.get('action')
+    else:
+        action = request.POST.get('action')
 
+    # now the DB lookup is the same
     try:
         myConn = connectDB2()
         cursor = myConn.cursor()
-
-        query = """
-            SELECT id, name FROM t_species
-        """
-        cursor.execute(query)
+        cursor.execute("SELECT id, name FROM t_species")
         columns = cursor.description
-        result = [{columns[i][0]: value for i, value in enumerate(row)} for row in cursor.fetchall()]
+        result = [
+            { columns[i][0]: row[i] for i in range(len(columns)) }
+            for row in cursor.fetchall()
+        ]
         resp = sendResponse(action, 200, "Success", result)
     except Exception as e:
-        resp = sendResponse(action, 500, f"Database error: {str(e)}", [])
+        resp = sendResponse(action, 500, f"Database error: {e}", [])
     finally:
         cursor.close()
         disconnectDB(myConn)
 
     return JsonResponse(resp)
-# //////////
-# 12. Get All Breeds by Species (dt_get_breeds_by_species)
-def dt_get_breeds_by_species(request):
-    action = request.POST.get('action')
 
-    try:
+
+def dt_get_breeds_by_species(request):
+    # support JSON or form-encoded
+    if request.content_type == 'application/json':
+        try:
+            body = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse(sendResponse(None, 400, "Invalid JSON", []))
+        action      = body.get('action')
+        species_id  = body.get('species_id')
+    else:
+        action     = request.POST.get('action')
         species_id = request.POST.get('species_id')
-    except Exception as e:
-        respData = []
-        resp = sendResponse(action, 1001, f"Request data missing or malformed: {str(e)}", respData)
-        return JsonResponse(resp)
+
+    if not species_id:
+        return JsonResponse(sendResponse(action, 400, "Missing species_id", []))
 
     try:
         myConn = connectDB2()
         cursor = myConn.cursor()
-
-        query = """
-            SELECT id, name FROM t_breeds WHERE species_id = %s
-        """
-        cursor.execute(query, (species_id,))
+        cursor.execute(
+            "SELECT id, name FROM t_breeds WHERE species_id = %s",
+            (species_id,),
+        )
         columns = cursor.description
-        result = [{columns[i][0]: value for i, value in enumerate(row)} for row in cursor.fetchall()]
+        result = [
+            { columns[i][0]: row[i] for i in range(len(columns)) }
+            for row in cursor.fetchall()
+        ]
         resp = sendResponse(action, 200, "Success", result)
     except Exception as e:
-        resp = sendResponse(action, 500, f"Database error: {str(e)}", [])
+        resp = sendResponse(action, 500, f"Database error: {e}", [])
     finally:
         cursor.close()
         disconnectDB(myConn)
@@ -440,12 +456,11 @@ def dt_get_breeds_by_species(request):
 @csrf_exempt
 def checkService(request):
     if request.method != "POST":
-        # you can allow GET for health‐checks, etc.
+
         return JsonResponse({"method": request.method})
 
     content_type = request.content_type or ""
 
-    # 1) multipart/form-data
     if content_type.startswith("multipart/form-data"):
         action = request.POST.get("action")
         if not action:
@@ -469,7 +484,6 @@ def checkService(request):
         if not action:
             return JsonResponse(sendResponse(None, 400, "Missing action", []))
 
-        # dispatch JSON actions
         if action == "register":
             return dt_register(request)
         elif action == "login":
