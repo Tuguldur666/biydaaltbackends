@@ -2,22 +2,12 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
 from datetime import datetime
-from api.settings import sendResponse, connectDB, disconnectDB
+from api.settings import sendResponse, connectDB2, disconnectDB
 import os
 from django.conf import settings
 
 
-# Helper function to send responses in a structured format
-def sendResponse(action, code, message, data):
-    return {
-        "action": action,
-        "status_code": code,
-        "message": message,
-        "data": data
-    }
 
-
-# 1. User Registration (dt_register)
 def dt_register(request):
     action = request.POST.get('action')
 
@@ -31,7 +21,7 @@ def dt_register(request):
         return JsonResponse(resp)
 
     try:
-        myConn = connectDB()
+        myConn = connectDB2()
         cursor = myConn.cursor()
 
         query = """
@@ -67,7 +57,7 @@ def dt_login(request):
         return JsonResponse(resp)
 
     try:
-        myConn = connectDB()
+        myConn = connectDB2()
         cursor = myConn.cursor()
 
         query = """
@@ -128,7 +118,7 @@ def dt_add_pet(request):
             destinationFilename = ""
 
         # Insert pet post into database
-        myConn = connectDB()
+        myConn = connectDB2()
         cursor = myConn.cursor()
 
         query = """
@@ -163,7 +153,7 @@ def dt_get_pet_detail(request):
         return JsonResponse(resp)
 
     try:
-        myConn = connectDB()
+        myConn = connectDB2()
         cursor = myConn.cursor()
 
         query = """
@@ -205,7 +195,7 @@ def dt_update_pet(request):
         return JsonResponse(resp)
 
     try:
-        myConn = connectDB()
+        myConn = connectDB2()
         cursor = myConn.cursor()
 
         query = """
@@ -239,7 +229,7 @@ def dt_delete_pet(request):
         return JsonResponse(resp)
 
     try:
-        myConn = connectDB()
+        myConn = connectDB2()
         cursor = myConn.cursor()
 
         query = "DELETE FROM t_pets WHERE id = %s"
@@ -263,7 +253,7 @@ def dt_get_all_pets(request):
     action = request.POST.get('action')
 
     try:
-        myConn = connectDB()
+        myConn = connectDB2()
         cursor = myConn.cursor()
 
         query = """
@@ -298,7 +288,7 @@ def dt_get_pets_by_species(request):
         return JsonResponse(resp)
 
     try:
-        myConn = connectDB()
+        myConn = connectDB2()
         cursor = myConn.cursor()
 
         query = """
@@ -334,7 +324,7 @@ def dt_get_pets_by_breed(request):
         return JsonResponse(resp)
 
     try:
-        myConn = connectDB()
+        myConn = connectDB2()
         cursor = myConn.cursor()
 
         query = """
@@ -370,7 +360,7 @@ def dt_get_pets_by_adopted(request):
         return JsonResponse(resp)
 
     try:
-        myConn = connectDB()
+        myConn = connectDB2()
         cursor = myConn.cursor()
 
         query = """
@@ -399,30 +389,39 @@ def dt_get_pets_by_adopted(request):
 def checkService(request):
     action = request.POST.get('action')
 
-    if action == 'register':
-        return dt_register(request)
-    elif action == 'login':
-        return dt_login(request)
-    elif action == 'add_pet':
-        return dt_add_pet(request)
-    elif action == 'get_pet_detail':
-        return dt_get_pet_detail(request)
-    elif action == 'update_pet':
-        return dt_update_pet(request)
-    elif action == 'delete_pet':
-        return dt_delete_pet(request)
-    elif action == 'get_all_pets':
-        return dt_get_all_pets(request)
-    elif action == 'get_pets_by_species':
-        return dt_get_pets_by_species(request)
-    elif action == 'get_pets_by_breed':
-        return dt_get_pets_by_breed(request)
-    elif action == 'get_pets_by_adopted':
-        return dt_get_pets_by_adopted(request)
+    if request.content_type.startswith('multipart/form-data'):
+        if action == 'add_pet':
+            return dt_add_pet(request)
+        elif action == 'update_pet':
+            return dt_update_pet(request)
+        else:
+            return JsonResponse({
+                "action": action,
+                "status_code": 1000,
+                "message": "Invalid action for multipart request",
+                "data": []
+            })
     else:
-        return JsonResponse({
-            "action": action,
-            "status_code": 1000,
-            "message": "Invalid action",
-            "data": []
-        })
+        if action == 'register':
+            return dt_register(request)
+        elif action == 'login':
+            return dt_login(request)
+        elif action == 'get_pet_detail':
+            return dt_get_pet_detail(request)
+        elif action == 'delete_pet':
+            return dt_delete_pet(request)
+        elif action == 'get_all_pets':
+            return dt_get_all_pets(request)
+        elif action == 'get_pets_by_species':
+            return dt_get_pets_by_species(request)
+        elif action == 'get_pets_by_breed':
+            return dt_get_pets_by_breed(request)
+        elif action == 'get_pets_by_adopted':
+            return dt_get_pets_by_adopted(request)
+        else:
+            return JsonResponse({
+                "action": action,
+                "status_code": 1000,
+                "message": "Invalid action",
+                "data": []
+            })

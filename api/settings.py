@@ -53,6 +53,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    
 ]
 
 ROOT_URLCONF = 'api.urls'
@@ -128,6 +129,26 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000", 
+    "https://biydaaltbackends.vercel.app",  
+]
+
+CORS_ALLOW_ALL_ORIGINS = True
+
+CORS_ALLOW_METHODS = [
+    'GET',
+    'POST',
+    'PUT',
+    'DELETE',
+    'PATCH',
+    'OPTIONS',
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
+
+
 def sendResponse(action, resultCode, resultMessage, data):
     response = {}
     response["action"] = action
@@ -143,6 +164,16 @@ def connectDB():
     conn = psycopg2.connect(
         host="pg-c90b446-mandakh-5e3d.l.aivencloud.com",
         dbname="defaultdb",
+        user="avnadmin",
+        password="AVNS_sCR9Pux3myegi5tLmnQ",
+        port=24306
+    )
+    return conn
+
+def connectDB2():
+    conn = psycopg2.connect(
+        host="pg-c90b446-mandakh-5e3d.l.aivencloud.com",
+        dbname="petadopt",
         user="avnadmin",
         password="AVNS_sCR9Pux3myegi5tLmnQ",
         port=24306
