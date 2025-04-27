@@ -442,19 +442,27 @@ def checkService(request):
     if request.method == "POST":
         content_type = request.content_type
 
-        if content_type == 'application/json':
+        if content_type == 'application/json': 
             try:
-                payload = json.loads(request.body)
-            except json.JSONDecodeError:
-                resp = sendResponse("invalid request json", 404, "Error", [])
+                jsons = json.loads(request.body)
+            except: 
+                action = "invalid request json"
+                respData = []
+                resp = sendResponse(action, 404, "Error", respData)
                 return JsonResponse(resp)
 
-            action = payload.get('action')
+            try: 
+                action = jsons['action']
+            except:
+                action = "no action"
+                respData = []
+                resp = sendResponse(action, 400, "Error", respData)
+                return JsonResponse(resp)
+
             if not action:
                 resp = sendResponse("no action", 400, "Error", [])
                 return JsonResponse(resp)
 
-            # Register / login / reads
             if action == 'register':
                 return dt_register(request)
             elif action == 'login':
@@ -480,9 +488,12 @@ def checkService(request):
                 return JsonResponse(resp)
 
         elif content_type.startswith('multipart/form-data'):
-            action = request.POST.get('action')
-            if not action:
-                resp = sendResponse("no action", 400, "No action key", [])
+            try: 
+                action = request.POST.get('action')
+            except:
+                action = "no action"
+                respData = []
+                resp = sendResponse(action, 400, "No action key", respData)
                 return JsonResponse(resp)
 
             if action == 'add_pet':
@@ -492,12 +503,74 @@ def checkService(request):
             else:
                 resp = sendResponse(action, 406, "No registered action", [])
                 return JsonResponse(resp)
-
-        else:
-            resp = sendResponse(None, 415, "Unsupported Media Type", [])
-            return JsonResponse(resp)
-
     elif request.method == "GET":
         return JsonResponse({"method": "GET"})
+
     else:
         return JsonResponse({"method": "other"})
+
+
+
+# @csrf_exempt
+# def checkService(request):
+#     if request.method == "POST":
+#         content_type = request.content_type
+
+#         if content_type == 'application/json':
+#             try:
+#                 payload = json.loads(request.body)
+#             except json.JSONDecodeError:
+#                 resp = sendResponse("invalid request json", 404, "Error", [])
+#                 return JsonResponse(resp)
+
+#             action = payload.get('action')
+#             if not action:
+#                 resp = sendResponse("no action", 400, "Error", [])
+#                 return JsonResponse(resp)
+
+#             if action == 'register':
+#                 return dt_register(request)
+#             elif action == 'login':
+#                 return dt_login(request)
+#             elif action == 'get_pet_detail':
+#                 return dt_get_pet_detail(request)
+#             elif action == 'get_all_pets':
+#                 return dt_get_all_pets(request)
+#             elif action == 'get_pets_by_species':
+#                 return dt_get_pets_by_species(request)
+#             elif action == 'get_pets_by_breed':
+#                 return dt_get_pets_by_breed(request)
+#             elif action == 'get_pets_by_adopted':
+#                 return dt_get_pets_by_adopted(request)
+#             elif action == 'get_all_species':
+#                 return dt_get_all_species(request)
+#             elif action == 'get_breeds_by_species':
+#                 return dt_get_breeds_by_species(request)
+#             elif action == 'delete_pet':
+#                 return dt_delete_pet(request)
+#             else:
+#                 resp = sendResponse(action, 406, "Error", [])
+#                 return JsonResponse(resp)
+
+#         elif content_type.startswith('multipart/form-data'):
+#             action = request.POST.get('action')
+#             if not action:
+#                 resp = sendResponse("no action", 400, "No action key", [])
+#                 return JsonResponse(resp)
+
+#             if action == 'add_pet':
+#                 return dt_add_pet(request)
+#             elif action == 'update_pet':
+#                 return dt_update_pet(request)
+#             else:
+#                 resp = sendResponse(action, 406, "No registered action", [])
+#                 return JsonResponse(resp)
+
+#         else:
+#             resp = sendResponse(None, 415, "Unsupported Media Type", [])
+#             return JsonResponse(resp)
+
+#     elif request.method == "GET":
+#         return JsonResponse({"method": "GET"})
+#     else:
+#         return JsonResponse({"method": "other"})
