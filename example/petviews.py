@@ -95,14 +95,13 @@ def dt_add_pet(request):
         description = request.POST.get('description')
         image = request.FILES.get('image')
         contact_info = request.POST.get('contact_info')
-        posted_by = request.POST.get('posted_by')  # User who posts the pet
+        posted_by = request.POST.get('posted_by')  
     except Exception as e:
         respData = []
         resp = sendResponse(action, 1001, f"Request data missing or malformed: {str(e)}", respData)
         return JsonResponse(resp)
 
     try:
-        # Handle the image upload
         if image:
             filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{image.name}"
             upload_dir = os.path.join(settings.MEDIA_ROOT, 'uploads/pets')
@@ -455,91 +454,75 @@ def dt_get_breeds_by_species(request):
 # Route handler (checkService)
 @csrf_exempt
 def checkService(request):
-    if request.method != "POST":
+    if request.method == "POST":
+        content_type = request.content_type
 
-        return JsonResponse({"method": request.method})
+        if content_type == 'application/json': 
+            try:
+                jsons = json.loads(request.body)
+            except: 
+                action = "invalid request json"
+                respData = []
+                resp = sendResponse(action, 404, "Error", respData)
+                return JsonResponse(resp)
 
-    content_type = request.content_type or ""
+            try: 
+                action = jsons['action']
+            except:
+                action = "no action"
+                respData = []
+                resp = sendResponse(action, 400, "Error", respData)
+                return JsonResponse(resp)
 
-    if content_type.startswith("multipart/form-data"):
-        action = request.POST.get("action")
-        if not action:
-            return JsonResponse(sendResponse(None, 400, "Missing action", []))
+            if action == "register":
+                return dt_register(request)
+            elif action == "login":
+                return dt_login(request)
+            elif action == "get_pet_detail":
+                return dt_get_pet_detail(request)
+            elif action == "get_all_pets":
+                return dt_get_all_pets(request)
+            elif action == "get_pets_by_species":
+                return dt_get_pets_by_species(request)
+            elif action == "get_pets_by_breed":
+                return dt_get_pets_by_breed(request)
+            elif action == "get_pets_by_adopted":
+                return dt_get_pets_by_adopted(request)
+            elif action == "get_all_species":
+                return dt_get_all_species(request)
+            elif action == "get_breeds_by_species":
+                return dt_get_breeds_by_species(request)
+            elif action == "delete_pet":
+                return dt_delete_pet(request)
+            else:
+                respData = []
+                resp = sendResponse(action, 406, "Error", respData)
+                return JsonResponse(resp)
 
-        if action == "add_pet":
-            return dt_add_pet(request)
-        elif action == "update_pet":
-            return dt_update_pet(request)
-        else:
-            return JsonResponse(sendResponse(action, 415, "Unsupported multipart action", []))
+        elif content_type.startswith('multipart/form-data'):
+            try: 
+                action = request.POST.get('action')
+            except:
+                action = "no action"
+                respData = []
+                resp = sendResponse(action, 400, "No action key", respData)
+                return JsonResponse(resp)
 
-    # 2) application/json
-    elif content_type == "application/json":
-        try:
-            payload = json.loads(request.body)
-        except json.JSONDecodeError:
-            return JsonResponse(sendResponse(None, 400, "Invalid JSON", []))
+            if action == "add_pet":
+                 dt_add_pet(request)
+            elif action == "update_pet":
+                return dt_update_pet(request)
+            else:
+                respData = []
+                resp = sendResponse(action, 406, "No registered action", respData)
+                return JsonResponse(resp)
 
-        action = payload.get("action")
-        if not action:
-            return JsonResponse(sendResponse(None, 400, "Missing action", []))
+    elif request.method == "GET":
+        return JsonResponse({"method": "GET"})
 
-        if action == "register":
-            return dt_register(request)
-        elif action == "login":
-            return dt_login(request)
-        elif action == "get_pet_detail":
-            return dt_get_pet_detail(request)
-        elif action == "get_all_pets":
-            return dt_get_all_pets(request)
-        elif action == "get_pets_by_species":
-            return dt_get_pets_by_species(request)
-        elif action == "get_pets_by_breed":
-            return dt_get_pets_by_breed(request)
-        elif action == "get_pets_by_adopted":
-            return dt_get_pets_by_adopted(request)
-        elif action == "get_all_species":
-            return dt_get_all_species(request)
-        elif action == "get_breeds_by_species":
-            return dt_get_breeds_by_species(request)
-        elif action == "delete_pet":
-            return dt_delete_pet(request)
-        else:
-            return JsonResponse(sendResponse(action, 406, "Unknown action", []))
-
-    # 3) application/x-www-form-urlencoded
-    elif content_type.startswith("application/x-www-form-urlencoded"):
-        action = request.POST.get("action")
-        if not action:
-            return JsonResponse(sendResponse(None, 400, "Missing action", []))
-
-        # dispatch URL-encoded exactly like JSON above
-        if action == "register":
-            return dt_register(request)
-        elif action == "login":
-            return dt_login(request)
-        elif action == "get_pet_detail":
-            return dt_get_pet_detail(request)
-        elif action == "get_all_pets":
-            return dt_get_all_pets(request)
-        elif action == "get_pets_by_species":
-            return dt_get_pets_by_species(request)
-        elif action == "get_pets_by_breed":
-            return dt_get_pets_by_breed(request)
-        elif action == "get_pets_by_adopted":
-            return dt_get_pets_by_adopted(request)
-        elif action == "get_all_species":
-            return dt_get_all_species(request)
-        elif action == "get_breeds_by_species":
-            return dt_get_breeds_by_species(request)
-        elif action == "delete_pet":
-            return dt_delete_pet(request)
-        else:
-            return JsonResponse(sendResponse(action, 406, "Unknown action", []))
-
-    # 4) anything else
     else:
-        return JsonResponse(sendResponse(None, 415, "Unsupported Media Type", []))
+        return JsonResponse({"method": "other"})
+
 
 
 # @csrf_exempt
