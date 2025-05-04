@@ -68,17 +68,19 @@ def dt_add_movie(request):
         myConn = connectDB()
         cursor = myConn.cursor()
 
+        # File save
         filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{poster_file.name}"
-        upload_dir = os.path.join(settings.MEDIA_ROOT, 'uploads')
-        os.makedirs(upload_dir, exist_ok=True)
+        file_path = os.path.join(settings.MEDIA_ROOT, filename)  # Don't add 'uploads' again
 
-        file_path = os.path.join(upload_dir, filename)
+        os.makedirs(settings.MEDIA_ROOT, exist_ok=True)
         with open(file_path, 'wb+') as destination:
             for chunk in poster_file.chunks():
                 destination.write(chunk)
 
-        destinationFilename = "media/uploads/" + filename
+        # Store the relative path (for client usage via MEDIA_URL)
+        destinationFilename = f"{settings.MEDIA_URL}{filename}"  # This becomes '/media/filename.jpg'
 
+        # Insert into DB
         query = """
             INSERT INTO t_movie (title, summary, poster, trailer, release_date, age_rate, "time", rate, metascore)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -88,6 +90,7 @@ def dt_add_movie(request):
         movie_id = cursor.fetchone()[0]
         myConn.commit()
 
+        # Fetch and return the new record
         query = "SELECT * FROM t_movie WHERE movie_id = %s"
         cursor.execute(query, (movie_id,))
         columns = cursor.description
@@ -102,6 +105,7 @@ def dt_add_movie(request):
         disconnectDB(myConn)
 
     return JsonResponse(resp)
+
 
 # Add Category Service
 def dt_add_category(request):
