@@ -59,7 +59,6 @@ def dt_add_movie(request):
         movie_time = request.POST.get('time')
         rate = request.POST.get('rate')
         metascore = request.POST.get('metascore')
-        genre_id = request.POST.get('genre_id')
     except Exception as e: 
         respData = []
         resp = sendResponse(action, 1001, f"Request data missing or malformed: {str(e)}", respData)
@@ -81,11 +80,11 @@ def dt_add_movie(request):
         destinationFilename = "media/uploads/" + filename
 
         query = """
-            INSERT INTO t_movie (title, summary, poster, trailer, release_date, age_rate, "time", rate, metascore, genre_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO t_movie (title, summary, poster, trailer, release_date, age_rate, "time", rate, metascore)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING movie_id
         """
-        cursor.execute(query, (title, summary, destinationFilename, trailer, release_date, age_rate, movie_time, rate, metascore, genre_id))
+        cursor.execute(query, (title, summary, destinationFilename, trailer, release_date, age_rate, movie_time, rate, metascore))
         movie_id = cursor.fetchone()[0]
         myConn.commit()
 
@@ -508,52 +507,52 @@ def dt_get_movie_detail(request):
 
 @csrf_exempt
 def checkService(request):
-    if request.method == 'POST':
-        if request.content_type == 'application/json':
-            try:
-                request_json = json.loads(request.body)
-                action = request_json.get("action", "")
-
-                if action == 'class':
-                    return JsonResponse(dt_class(request))
-                elif action == 'db_check':
-                    return JsonResponse(dt_connect_status(request))
-                elif action == 'add_movie':
-                    return dt_add_movie(request)
-                elif action == 'add_category':
-                    return dt_add_category(request)
-                elif action == 'add_actor':
-                    return dt_add_actor(request)
-                elif action == 'add_actor_rel':
-                    return dt_add_actor_rel(request)
-                elif action == 'add_movie_content':
-                    return dt_add_movie_content(request)
-                elif action == 'add_genre':
-                    return dt_add_genre(request)
-                elif action == 'add_cat_movie':
-                    return dt_add_cat_movie(request)
-                elif action == 'add_wishlist':
-                    return dt_add_wishlist(request)
-                elif action == 'get_all_movies':
-                    return dt_get_all_movies(request)
-                elif action == 'get_movies_by_cat':
-                    return dt_get_movies_by_cat(request)
-                elif action == 'get_movie_detail':
-                    return dt_get_movie_detail(request)
-                else:
-                    # Unknown action
-                    resp = sendResponse(action, 400, "Unknown action", [])
-                    return JsonResponse(resp)
-
-            except json.JSONDecodeError:
-                # Invalid JSON
-                resp = sendResponse("json_decode", 400, "Invalid JSON", [])
-                return JsonResponse(resp)
-        else:
-            # Invalid content type
-            resp = sendResponse("content_type", 415, "Unsupported Media Type", [])
-            return JsonResponse(resp)
-    else:
-        # Invalid HTTP method
+    if request.method != 'POST':
         resp = sendResponse("http_method", 405, "Method Not Allowed", [])
+        return JsonResponse(resp)
+
+    action = ''
+
+    if request.content_type.startswith('application/json'):
+        try:
+            request_json = json.loads(request.body)
+            action = request_json.get("action", "")
+        except json.JSONDecodeError:
+            resp = sendResponse("json_decode", 400, "Invalid JSON", [])
+            return JsonResponse(resp)
+    elif request.content_type.startswith('multipart/form-data'):
+        action = request.POST.get("action", "")
+    else:
+        resp = sendResponse("content_type", 415, "Unsupported Media Type", [])
+        return JsonResponse(resp)
+
+    # Dispatch actions
+    if action == 'class':
+        return JsonResponse(dt_class(request))
+    elif action == 'db_check':
+        return JsonResponse(dt_connect_status(request))
+    elif action == 'add_movie':
+        return dt_add_movie(request)
+    elif action == 'add_category':
+        return dt_add_category(request)
+    elif action == 'add_actor':
+        return dt_add_actor(request)
+    elif action == 'add_actor_rel':
+        return dt_add_actor_rel(request)
+    elif action == 'add_movie_content':
+        return dt_add_movie_content(request)
+    elif action == 'add_genre':
+        return dt_add_genre(request)
+    elif action == 'add_cat_movie':
+        return dt_add_cat_movie(request)
+    elif action == 'add_wishlist':
+        return dt_add_wishlist(request)
+    elif action == 'get_all_movies':
+        return dt_get_all_movies(request)
+    elif action == 'get_movies_by_cat':
+        return dt_get_movies_by_cat(request)
+    elif action == 'get_movie_detail':
+        return dt_get_movie_detail(request)
+    else:
+        resp = sendResponse(action, 400, "Unknown action", [])
         return JsonResponse(resp)
