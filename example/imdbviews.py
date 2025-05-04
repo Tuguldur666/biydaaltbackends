@@ -505,54 +505,127 @@ def dt_get_movie_detail(request):
 
     return JsonResponse(resp)
 
+# @csrf_exempt
+# def checkService(request):
+#     if request.method != 'POST':
+#         resp = sendResponse("http_method", 405, "Method Not Allowed", [])
+#         return JsonResponse(resp)
+
+#     action = ''
+
+#     if request.content_type.startswith('application/json'):
+#         try:
+#             request_json = json.loads(request.body)
+#             action = request_json.get("action", "")
+#         except json.JSONDecodeError:
+#             resp = sendResponse("json_decode", 400, "Invalid JSON", [])
+#             return JsonResponse(resp)
+#     elif request.content_type.startswith('multipart/form-data'):
+#         action = request.POST.get("action", "")
+#     else:
+#         resp = sendResponse("content_type", 415, "Unsupported Media Type", [])
+#         return JsonResponse(resp)
+
+#     # Dispatch actions
+#     if action == 'class':
+#         return JsonResponse(dt_class(request))
+#     elif action == 'db_check':
+#         return JsonResponse(dt_connect_status(request))
+#     elif action == 'add_movie':
+#         return dt_add_movie(request)
+#     elif action == 'add_category':
+#         return dt_add_category(request)
+#     elif action == 'add_actor':
+#         return dt_add_actor(request)
+#     elif action == 'add_actor_rel':
+#         return dt_add_actor_rel(request)
+#     elif action == 'add_movie_content':
+#         return dt_add_movie_content(request)
+#     elif action == 'add_genre':
+#         return dt_add_genre(request)
+#     elif action == 'add_cat_movie':
+#         return dt_add_cat_movie(request)
+#     elif action == 'add_wishlist':
+#         return dt_add_wishlist(request)
+#     elif action == 'get_all_movies':
+#         return dt_get_all_movies(request)
+#     elif action == 'get_movies_by_cat':
+#         return dt_get_movies_by_cat(request)
+#     elif action == 'get_movie_detail':
+#         return dt_get_movie_detail(request)
+#     else:
+#         resp = sendResponse(action, 400, "Unknown action", [])
+#         return JsonResponse(resp)
+    
 @csrf_exempt
 def checkService(request):
-    if request.method != 'POST':
-        resp = sendResponse("http_method", 405, "Method Not Allowed", [])
-        return JsonResponse(resp)
+    if request.method == "POST":
+        content_type = request.content_type
 
-    action = ''
+        if content_type == 'application/json': 
+            try:
+                jsons = json.loads(request.body)
+            except: 
+                action = "invalid request json"
+                respData = []
+                resp = sendResponse(action, 404, "Error", respData)
+                return JsonResponse(resp)
 
-    if request.content_type.startswith('application/json'):
-        try:
-            request_json = json.loads(request.body)
-            action = request_json.get("action", "")
-        except json.JSONDecodeError:
-            resp = sendResponse("json_decode", 400, "Invalid JSON", [])
-            return JsonResponse(resp)
-    elif request.content_type.startswith('multipart/form-data'):
-        action = request.POST.get("action", "")
+            try: 
+                action = jsons['action']
+            except:
+                action = "no action"
+                respData = []
+                resp = sendResponse(action, 400, "Error", respData)
+                return JsonResponse(resp)
+
+            if action == 'class':
+                return JsonResponse(dt_class(request))
+            elif action == 'db_check':
+                return JsonResponse(dt_connect_status(request))
+            elif action == 'add_category':
+                return dt_add_category(request)
+            elif action == 'add_actor_rel':
+                return dt_add_actor_rel(request)
+            elif action == 'add_genre':
+                return dt_add_genre(request)
+            elif action == 'add_cat_movie':
+                return dt_add_cat_movie(request)
+            elif action == 'add_wishlist':
+                return dt_add_wishlist(request)
+            elif action == 'get_all_movies':
+                return dt_get_all_movies(request)
+            elif action == 'get_movies_by_cat':
+                return dt_get_movies_by_cat(request)
+            elif action == 'get_movie_detail':
+                return dt_get_movie_detail(request)
+            else:
+                respData = []
+                resp = sendResponse(action, 406, "Error", respData)
+                return JsonResponse(resp)
+
+        elif content_type.startswith('multipart/form-data'): 
+            try: 
+                action = request.POST.get('action')
+            except:
+                action = "no action"
+                respData = []
+                resp = sendResponse(action, 400, "no action key", respData)
+                return JsonResponse(resp)
+
+            if action == 'add_movie':
+                return dt_add_movie(request)
+            elif action == 'add_actor':
+                return dt_add_actor(request)
+            elif action == 'add_movie_content':
+                return dt_add_movie_content(request)
+            else:
+                respData = []
+                resp = sendResponse(action, 406, "no registered action", respData)
+                return JsonResponse(resp)
+
+    elif request.method == "GET":
+        return JsonResponse({"method": "GET"})
+
     else:
-        resp = sendResponse("content_type", 415, "Unsupported Media Type", [])
-        return JsonResponse(resp)
-
-    # Dispatch actions
-    if action == 'class':
-        return JsonResponse(dt_class(request))
-    elif action == 'db_check':
-        return JsonResponse(dt_connect_status(request))
-    elif action == 'add_movie':
-        return dt_add_movie(request)
-    elif action == 'add_category':
-        return dt_add_category(request)
-    elif action == 'add_actor':
-        return dt_add_actor(request)
-    elif action == 'add_actor_rel':
-        return dt_add_actor_rel(request)
-    elif action == 'add_movie_content':
-        return dt_add_movie_content(request)
-    elif action == 'add_genre':
-        return dt_add_genre(request)
-    elif action == 'add_cat_movie':
-        return dt_add_cat_movie(request)
-    elif action == 'add_wishlist':
-        return dt_add_wishlist(request)
-    elif action == 'get_all_movies':
-        return dt_get_all_movies(request)
-    elif action == 'get_movies_by_cat':
-        return dt_get_movies_by_cat(request)
-    elif action == 'get_movie_detail':
-        return dt_get_movie_detail(request)
-    else:
-        resp = sendResponse(action, 400, "Unknown action", [])
-        return JsonResponse(resp)
+        return JsonResponse({"method": "busad"})
