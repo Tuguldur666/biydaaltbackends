@@ -47,10 +47,16 @@ def dt_connect_status(request):
     return resp
 
 # Add Movie Service
+
 def dt_add_movie(request):
-    action = request.POST.get('action')
+    action = request.POST.get('action', 'add_movie')
+
     try:
+        # Get data
         poster_file = request.FILES.get('poster')  
+        if not poster_file:
+            raise ValueError("Poster file is required.")
+
         title = request.POST.get('title')
         summary = request.POST.get('summary')
         trailer = request.POST.get('trailer')
@@ -59,26 +65,33 @@ def dt_add_movie(request):
         movie_time = request.POST.get('time')
         rate = request.POST.get('rate')
         metascore = request.POST.get('metascore')
+        
+        # Validate required fields
+        if not title:
+            raise ValueError("Title is required.")
+        
     except Exception as e: 
-        respData = []
-        resp = sendResponse(action, 1001, f"Request data missing or malformed: {str(e)}", respData)
+        resp = sendResponse(action, 1001, f"Request data missing or malformed: {str(e)}", [])
         return JsonResponse(resp)
 
     try:
+        # DB connect
         myConn = connectDB()
         cursor = myConn.cursor()
 
-        # File save
-        filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{poster_file.name}"
-        file_path = os.path.join(settings.MEDIA_ROOT, filename)  # Don't add 'uploads' again
+        # Save file to media/uploads
+        upload_dir = os.path.join(settings.MEDIA_ROOT, 'uploads')
+        os.makedirs(upload_dir, exist_ok=True)
 
-        os.makedirs(settings.MEDIA_ROOT, exist_ok=True)
+        filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{poster_file.name}"
+        file_path = os.path.join(upload_dir, filename)
+
         with open(file_path, 'wb+') as destination:
             for chunk in poster_file.chunks():
                 destination.write(chunk)
 
-        # Store the relative path (for client usage via MEDIA_URL)
-        destinationFilename = f"{settings.MEDIA_URL}{filename}"  # This becomes '/media/filename.jpg'
+        # Relative URL to serve via MEDIA_URL
+        relative_url = f"/media/uploads/{filename}"
 
         # Insert into DB
         query = """
@@ -86,20 +99,19 @@ def dt_add_movie(request):
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING movie_id
         """
-        cursor.execute(query, (title, summary, destinationFilename, trailer, release_date, age_rate, movie_time, rate, metascore))
+        cursor.execute(query, (title, summary, relative_url, trailer, release_date, age_rate, movie_time, rate, metascore))
         movie_id = cursor.fetchone()[0]
         myConn.commit()
 
-        # Fetch and return the new record
-        query = "SELECT * FROM t_movie WHERE movie_id = %s"
-        cursor.execute(query, (movie_id,))
-        columns = cursor.description
-        respRow = [{columns[index][0]: column for index, column in enumerate(row)} for row in cursor.fetchall()]
+        # Return inserted movie
+        cursor.execute("SELECT * FROM t_movie WHERE movie_id = %s", (movie_id,))
+        columns = [col[0] for col in cursor.description]
+        row = cursor.fetchone()
+        respRow = [dict(zip(columns, row))] if row else []
 
         resp = sendResponse(action, 200, "Success", respRow)
     except Exception as e:
-        respData = []
-        resp = sendResponse(action, 1006, "Database error: " + str(e), respData)
+        resp = sendResponse(action, 1006, f"Database error: {str(e)}", [])
     finally:
         cursor.close()
         disconnectDB(myConn)
