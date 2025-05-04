@@ -5,6 +5,7 @@ from datetime import datetime
 from api.settings import sendResponse, connectDB, disconnectDB
 import os
 from django.conf import settings
+import base64
 
 # Time Response Service
 def dt_time(request):
@@ -48,12 +49,14 @@ def dt_connect_status(request):
 
 # Add Movie Service
 
+
+
 def dt_add_movie(request):
     action = request.POST.get('action', 'add_movie')
     print(f"[DEBUG] Incoming action: {action}")
     
     try:
-        # Get form data
+
         poster_file = request.FILES.get('poster')  
         print(f"[DEBUG] poster_file: {poster_file}")
         if not poster_file:
@@ -80,40 +83,30 @@ def dt_add_movie(request):
         return JsonResponse(resp)
 
     try:
-        # DB connect
+
+        mime_type = poster_file.content_type  
+        base64_bytes = base64.b64encode(poster_file.read())
+        base64_str = f"data:{mime_type};base64,{base64_bytes.decode()}"
+        print(f"[DEBUG] Encoded poster as base64.")
+
+  
         myConn = connectDB()
         cursor = myConn.cursor()
         print("[DEBUG] Database connection established.")
 
-        # Save file to media/uploads
-        upload_dir = os.path.join(settings.MEDIA_ROOT, 'uploads')
-        os.makedirs(upload_dir, exist_ok=True)
-
-        filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{poster_file.name}"
-        file_path = os.path.join(upload_dir, filename)
-        print(f"[DEBUG] Saving poster file to: {file_path}")
-
-        with open(file_path, 'wb+') as destination:
-            for chunk in poster_file.chunks():
-                destination.write(chunk)
-
-        # Relative path for database and media access
-        relative_url = f"/media/uploads/{filename}"
-        print(f"[DEBUG] Saved file relative URL: {relative_url}")
-
-        # Insert into DB
+     
         query = """
             INSERT INTO t_movie (title, summary, poster, trailer, release_date, age_rate, "time", rate, metascore)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING movie_id
         """
         print("[DEBUG] Executing insert query.")
-        cursor.execute(query, (title, summary, relative_url, trailer, release_date, age_rate, movie_time, rate, metascore))
+        cursor.execute(query, (title, summary, base64_str, trailer, release_date, age_rate, movie_time, rate, metascore))
         movie_id = cursor.fetchone()[0]
         myConn.commit()
         print(f"[DEBUG] Inserted movie_id: {movie_id}")
 
-        # Fetch and return inserted row
+
         cursor.execute("SELECT * FROM t_movie WHERE movie_id = %s", (movie_id,))
         columns = [col[0] for col in cursor.description]
         row = cursor.fetchone()
@@ -191,23 +184,16 @@ def dt_add_actor(request):
         myConn = connectDB()
         cursor = myConn.cursor()
 
-        filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{image.name}"
-        upload_dir = os.path.join(settings.MEDIA_ROOT, 'uploads/actors')
-        os.makedirs(upload_dir, exist_ok=True)
-
-        file_path = os.path.join(upload_dir, filename)
-        with open(file_path, 'wb+') as destination:
-            for chunk in image.chunks():
-                destination.write(chunk)
-
-        destinationFilename = "media/uploads/actors/" + filename
+        # Convert image to base64
+        image_data = image.read()
+        encoded_image = base64.b64encode(image_data).decode('utf-8')  # store as string
 
         query = """
             INSERT INTO t_actor (image, fname, lname)
             VALUES (%s, %s, %s)
             RETURNING actor_id
         """
-        cursor.execute(query, (destinationFilename, fname, lname))
+        cursor.execute(query, (encoded_image, fname, lname))
         actor_id = cursor.fetchone()[0]
         myConn.commit()
 
@@ -226,10 +212,12 @@ def dt_add_actor(request):
 
     return JsonResponse(resp)
 
+
 # Add Actor Relationship Service
 def dt_add_actor_rel(request):
     request_json = json.loads(request.body)
-    action = request_json('action')
+    action = request_json.get('action')  # Fixed here
+
     try:
         movie_id = request_json.get('movie_id')
         actor_id = request_json.get('actor_id')
@@ -266,6 +254,7 @@ def dt_add_actor_rel(request):
         disconnectDB(myConn)
 
     return JsonResponse(resp)
+
 
 # Add Movie Content Service
 def dt_add_movie_content(request):
@@ -439,22 +428,24 @@ def dt_add_wishlist(request):
 # ///
 
 def dt_get_all_movies(request):
-    action = request.POST.get('action')
+    request_json = json.loads(request.body)
+    action = request_json.get('action')
     try:
         myConn = connectDB()
         cursor = myConn.cursor()
 
         query = """
-            SELECT m.*, g.genre_name, array_agg(DISTINCT c.cat_name) AS categories,
-                   array_agg(DISTINCT a.fname || ' ' || a.lname || ' (' || ar.char_name || ')') AS actors
-            FROM t_movie m
-            LEFT JOIN t_genre g ON m.genre_id = g.genre_id
-            LEFT JOIN t_cat_movie cm ON m.movie_id = cm.movie_id
-            LEFT JOIN t_category c ON cm.cat_id = c.cat_id
-            LEFT JOIN t_actor_rel ar ON m.movie_id = ar.movie_id
-            LEFT JOIN t_actor a ON ar.actor_id = a.actor_id
-            GROUP BY m.movie_id, g.genre_name
-            ORDER BY m.movie_id DESC
+                    SELECT m.*, 
+                    array_agg(DISTINCT c.cat_name) AS categories,
+                    array_agg(DISTINCT a.fname || ' ' || a.lname || ' (' || ar.char_name || ')') AS actors
+                FROM t_movie m
+                LEFT JOIN t_cat_movie cm ON m.movie_id = cm.movie_id
+                LEFT JOIN t_category c ON cm.cat_id = c.cat_id
+                LEFT JOIN t_actor_rel ar ON m.movie_id = ar.movie_id
+                LEFT JOIN t_actor a ON ar.actor_id = a.actor_id
+                GROUP BY m.movie_id
+                ORDER BY m.movie_id DESC;
+
         """
         cursor.execute(query)
         columns = cursor.description
