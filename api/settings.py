@@ -119,6 +119,11 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
+STATIC_URL = '/static/'  # Make sure the trailing slash is present!
+
+STATICFILES_DIRS = [
+    BASE_DIR / "static",  # Assumes you have a folder called 'static' in your root
+]
 
 import os
 
