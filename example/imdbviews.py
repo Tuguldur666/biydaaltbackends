@@ -106,14 +106,15 @@ def dt_add_movie(request):
 
 # Add Category Service
 def dt_add_category(request):
-    action = request.POST.get('action')
     try:
-        cat_name = request.POST.get('cat_name')
-        cat_color = request.POST.get('cat_color')
-        cat_desc = request.POST.get('cat_desc')
-    except Exception as e: 
+        request_json = json.loads(request.body)
+        action = request_json.get("action")
+        cat_name = request_json.get("cat_name")
+        cat_color = request_json.get("cat_color")
+        cat_desc = request_json.get("cat_desc")
+    except Exception as e:
         respData = []
-        resp = sendResponse(action, 1001, f"Request data missing or malformed: {str(e)}", respData)
+        resp = sendResponse("add_category", 1001, f"Request data missing or malformed: {str(e)}", respData)
         return JsonResponse(resp)
 
     try:
@@ -137,7 +138,7 @@ def dt_add_category(request):
         resp = sendResponse(action, 200, "Success", respRow)
     except Exception as e:
         respData = []
-        resp = sendResponse(action, 1006, "Database error: " + str(e), respData)
+        resp = sendResponse(action or "add_category", 1006, "Database error: " + str(e), respData)
     finally:
         cursor.close()
         disconnectDB(myConn)
@@ -197,11 +198,12 @@ def dt_add_actor(request):
 
 # Add Actor Relationship Service
 def dt_add_actor_rel(request):
-    action = request.POST.get('action')
+    request_json = json.loads(request.body)
+    action = request_json('action')
     try:
-        movie_id = request.POST.get('movie_id')
-        actor_id = request.POST.get('actor_id')
-        char_name = request.POST.get('char_name')
+        movie_id = request_json.get('movie_id')
+        actor_id = request_json.get('actor_id')
+        char_name = request_json.get('char_name')
     except Exception as e:
         respData = []
         resp = sendResponse(action, 1001, f"Request data missing or malformed: {str(e)}", respData)
@@ -288,9 +290,10 @@ def dt_add_movie_content(request):
 
 # Add Genre Service
 def dt_add_genre(request):
-    action = request.POST.get('action')
+    request_json = json.loads(request.body)
+    action = request_json.get('action')
     try:
-        genre_name = request.POST.get('genre_name')
+        genre_name = request_json.get('genre_name')
     except Exception as e:
         respData = []
         resp = sendResponse(action, 1001, f"Request data missing or malformed: {str(e)}", respData)
@@ -326,10 +329,11 @@ def dt_add_genre(request):
 # 
 # Add Category-Movie Relationship Service
 def dt_add_cat_movie(request):
-    action = request.POST.get('action')
+    request_json = json.loads(request.body)
+    action = request_json.get('action')
     try:
-        movie_id = request.POST.get('movie_id')
-        cat_id = request.POST.get('cat_id')
+        movie_id = request_json.get('movie_id')
+        cat_id = request_json.get('cat_id')
     except Exception as e:
         respData = []
         resp = sendResponse(action, 1001, f"Request data missing or malformed: {str(e)}", respData)
@@ -365,6 +369,7 @@ def dt_add_cat_movie(request):
 # 
 # Add Wishlist Service
 def dt_add_wishlist(request):
+
     action = request.POST.get('action')
     try:
         movie_id = request.POST.get('movie_id')
