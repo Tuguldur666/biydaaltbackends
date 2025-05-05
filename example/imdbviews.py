@@ -71,6 +71,7 @@ def dt_add_movie(request):
         rate = request.POST.get('rate')
         metascore = request.POST.get('metascore')
 
+        image_file = request.FILES.get('poster')
         print(f"[DEBUG] Form data: title={title}, summary={summary}, trailer={trailer}, release_date={release_date}, age_rate={age_rate}, time={movie_time}, rate={rate}, metascore={metascore}")
 
         if not title:
@@ -84,24 +85,38 @@ def dt_add_movie(request):
 
     try:
 
-        mime_type = poster_file.content_type  
-        base64_bytes = base64.b64encode(poster_file.read())
-        base64_str = f"data:{mime_type};base64,{base64_bytes.decode()}"
-        print(f"[DEBUG] Encoded poster as base64.")
+        # mime_type = poster_file.content_type  
+        # base64_bytes = base64.b64encode(poster_file.read())
+        # base64_str = f"data:{mime_type};base64,{base64_bytes.decode()}"
+        # print(f"[DEBUG] Encoded poster as base64.")
 
   
         myConn = connectDB()
         cursor = myConn.cursor()
         print("[DEBUG] Database connection established.")
 
+        # 3.1 Generate a safe filename with timestamp to avoid duplicates
+        filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{image_file.name}"
+
+        # 3.2 Determine upload directory (e.g., "media/uploads/")
+        upload_dir = os.path.join(settings.MEDIA_ROOT, 'uploads')
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        # 3.3 Save the file to disk
+        file_path = os.path.join(upload_dir, filename)
+        with open(file_path, 'wb+') as destination:
+            for chunk in image_file.chunks():
+                destination.write(chunk)
+                
+        destinationFilename = "media/uploads/" + filename
      
         query = """
             INSERT INTO t_movie (title, summary, poster, trailer, release_date, age_rate, "time", rate, metascore)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING movie_id
         """
-        print("[DEBUG] Executing insert query.")
-        cursor.execute(query, (title, summary, base64_str, trailer, release_date, age_rate, movie_time, rate, metascore))
+        print("[DEBUG] Executing insert query.", query)
+        cursor.execute(query, (title, summary, destinationFilename, trailer, release_date, age_rate, movie_time, rate, metascore))
         movie_id = cursor.fetchone()[0]
         myConn.commit()
         print(f"[DEBUG] Inserted movie_id: {movie_id}")
