@@ -84,12 +84,6 @@ def dt_add_movie(request):
         return JsonResponse(resp)
 
     try:
-
-        # mime_type = poster_file.content_type  
-        # base64_bytes = base64.b64encode(poster_file.read())
-        # base64_str = f"data:{mime_type};base64,{base64_bytes.decode()}"
-        # print(f"[DEBUG] Encoded poster as base64.")
-
   
         myConn = connectDB()
         cursor = myConn.cursor()
@@ -109,6 +103,7 @@ def dt_add_movie(request):
                 destination.write(chunk)
                 
         destinationFilename = "media/uploads/" + filename
+        print(destinationFilename)
      
         query = """
             INSERT INTO t_movie (title, summary, poster, trailer, release_date, age_rate, "time", rate, metascore)
@@ -476,8 +471,9 @@ def dt_get_all_movies(request):
 # ///
 
 def dt_get_movies_by_cat(request):
-    action = request.POST.get('action')
-    cat_id = request.POST.get('cat_id')
+    request_json = json.loads(request.body)
+    action = request_json.get('action')
+    cat_id = request_json.get('cat_id')
 
     if not cat_id:
         return JsonResponse(sendResponse(action, 400, "cat_id is required", []))
@@ -505,8 +501,9 @@ def dt_get_movies_by_cat(request):
 # ///
 
 def dt_get_movie_detail(request):
-    action = request.POST.get('action')
-    movie_id = request.POST.get('movie_id')
+    request_json = json.loads(request.body)
+    action = request_json.get('action')
+    movie_id = request_json.get('movie_id')
 
     if not movie_id:
         return JsonResponse(sendResponse(action, 400, "movie_id is required", []))
@@ -531,6 +528,31 @@ def dt_get_movie_detail(request):
             GROUP BY m.movie_id, g.genre_name
         """
         cursor.execute(query, (movie_id,))
+        columns = cursor.description
+        result = [{columns[i][0]: value for i, value in enumerate(row)} for row in cursor.fetchall()]
+        resp = sendResponse(action, 200, "Success", result)
+    except Exception as e:
+        resp = sendResponse(action, 500, f"Database error: {str(e)}", [])
+    finally:
+        cursor.close()
+        disconnectDB(myConn)
+
+    return JsonResponse(resp)
+# /////////////
+
+def dt_get_all_categories(request):
+    request_json = json.loads(request.body)
+    action = request_json.get('action')
+
+    try:
+        myConn = connectDB()
+        cursor = myConn.cursor()
+
+        query = """
+            SELECT cat_id, cat_name, cat_color, cat_desc
+            FROM public.t_category
+        """
+        cursor.execute(query)
         columns = cursor.description
         result = [{columns[i][0]: value for i, value in enumerate(row)} for row in cursor.fetchall()]
         resp = sendResponse(action, 200, "Success", result)
@@ -636,6 +658,8 @@ def checkService(request):
                 return dt_get_movies_by_cat(request)
             elif action == 'get_movie_detail':
                 return dt_get_movie_detail(request)
+            elif action == 'get_all_categories':
+                return dt_get_all_categories(request)
             else:
                 respData = []
                 resp = sendResponse(action, 406, "Error", respData)
