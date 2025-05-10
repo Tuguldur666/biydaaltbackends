@@ -97,33 +97,31 @@ def dt_add_pet(request):
         description = request.POST.get('description')
         image = request.FILES.get('image')
         contact_info = request.POST.get('contact_info')
-        posted_by = request.POST.get('posted_by')
+        posted_by = request.POST.get('posted_by')  # User who posts the pet
     except Exception as e:
         respData = []
         resp = sendResponse(action, 1001, f"Request data missing or malformed: {str(e)}", respData)
         return JsonResponse(resp)
 
-    myConn = None
-    cursor = None
-
     try:
+        # Handle the image upload
         if image:
             filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{image.name}"
             upload_dir = os.path.join(settings.MEDIA_ROOT, 'uploads/pets')
             os.makedirs(upload_dir, exist_ok=True)
+
             file_path = os.path.join(upload_dir, filename)
             with open(file_path, 'wb+') as destination:
                 for chunk in image.chunks():
                     destination.write(chunk)
-            destinationFilename = "media/uploads/" + filename
+
+            destinationFilename = "media/uploads/pets/" + filename
         else:
             destinationFilename = ""
 
         myConn = connectDB2()
-        if not myConn:
-            raise Exception("Database connection failed")
-
         cursor = myConn.cursor()
+
         query = """
             INSERT INTO t_pets (name, species_id, breed_id, age, gender, description, image, contact_info, posted_by)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
@@ -138,19 +136,10 @@ def dt_add_pet(request):
         respData = []
         resp = sendResponse(action, 1006, f"Database error: {str(e)}", respData)
     finally:
-        try:
-            if cursor:
-                cursor.close()
-        except:
-            pass
-        try:
-            if myConn:
-                disconnectDB(myConn)
-        except:
-            pass
+        cursor.close()
+        disconnectDB(myConn)
 
     return JsonResponse(resp)
-
 
 
 # 4. Get Pet Detail (dt_get_pet_detail)
