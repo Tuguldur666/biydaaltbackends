@@ -115,7 +115,7 @@ def dt_add_pet(request):
             with open(file_path, 'wb+') as destination:
                 for chunk in image.chunks():
                     destination.write(chunk)
-            destinationFilename = "media/uploads/pets/" + filename
+            destinationFilename = "media/uploads/" + filename
         else:
             destinationFilename = ""
 
