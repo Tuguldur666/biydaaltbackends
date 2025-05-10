@@ -513,18 +513,30 @@ def dt_get_movie_detail(request):
         cursor = myConn.cursor()
 
         query = """
-            SELECT m.*, 
-                   array_agg(DISTINCT c.cat_name) AS categories,
-                   array_agg(DISTINCT a.fname || ' ' || a.lname || ' as ' || ar.char_name) AS actors,
-                   array_agg(DISTINCT mc.image) AS images
-            FROM t_movie m
-            LEFT JOIN t_cat_movie cm ON m.movie_id = cm.movie_id
-            LEFT JOIN t_category c ON cm.cat_id = c.cat_id
-            LEFT JOIN t_actor_rel ar ON m.movie_id = ar.movie_id
-            LEFT JOIN t_actor a ON ar.actor_id = a.actor_id
-            LEFT JOIN t_movie_content mc ON m.movie_id = mc.movie_id
-            WHERE m.movie_id = %s
-            GROUP BY m.movie_id
+                    SELECT 
+                m.*, 
+                array_agg(DISTINCT c.cat_name) AS categories,
+                (
+                    SELECT json_agg(actor_info)
+                    FROM (
+                    SELECT DISTINCT
+                        a.fname,
+                        a.lname,
+                        ar.char_name,
+                        a.image
+                    FROM t_actor_rel ar
+                    JOIN t_actor a ON ar.actor_id = a.actor_id
+                    WHERE ar.movie_id = m.movie_id
+                    ) AS actor_info
+                ) AS actors,
+                array_agg(DISTINCT mc.image) AS images
+                FROM t_movie m
+                LEFT JOIN t_cat_movie cm ON m.movie_id = cm.movie_id
+                LEFT JOIN t_category c ON cm.cat_id = c.cat_id
+                LEFT JOIN t_movie_content mc ON m.movie_id = mc.movie_id
+                WHERE m.movie_id = %s
+                GROUP BY m.movie_id;
+
         """
         cursor.execute(query, (movie_id,))
         columns = cursor.description
