@@ -563,6 +563,52 @@ def dt_get_all_categories(request):
 
     return JsonResponse(resp)
 
+
+def dt_search_movie_by_name(request):
+    request_json = json.loads(request.body)
+    action = request_json.get('action')
+    movie_name = request_json.get('movie_name')
+
+    if not movie_name:
+        return JsonResponse(sendResponse(action, 400, "movie_name is required", []))
+
+    try:
+        myConn = connectDB()
+        cursor = myConn.cursor()
+
+        query = """
+            SELECT m.*, 
+                   array_agg(DISTINCT c.cat_name) AS categories,
+                   array_agg(DISTINCT a.fname || ' ' || a.lname || ' as ' || ar.char_name) AS actors,
+                   array_agg(DISTINCT mc.image) AS images
+            FROM t_movie m
+            LEFT JOIN t_cat_movie cm ON m.movie_id = cm.movie_id
+            LEFT JOIN t_category c ON cm.cat_id = c.cat_id
+            LEFT JOIN t_actor_rel ar ON m.movie_id = ar.movie_id
+            LEFT JOIN t_actor a ON ar.actor_id = a.actor_id
+            LEFT JOIN t_movie_content mc ON m.movie_id = mc.movie_id
+            WHERE m.title ILIKE %s  -- Using ILIKE for case-insensitive search
+            GROUP BY m.movie_id
+        """
+        cursor.execute(query, ('%' + movie_name + '%',)) 
+        columns = cursor.description
+        result = [{columns[i][0]: value for i, value in enumerate(row)} for row in cursor.fetchall()]
+        
+        if not result:
+            return JsonResponse(sendResponse(action, 404, "No movies found matching the name", []))
+        
+        resp = sendResponse(action, 200, "Success", result)
+
+    except Exception as e:
+        resp = sendResponse(action, 500, f"Database error: {str(e)}", [])
+
+    finally:
+        cursor.close()
+        disconnectDB(myConn)
+
+    return JsonResponse(resp)
+
+
 # @csrf_exempt
 # def checkService(request):
 #     if request.method != 'POST':
@@ -659,6 +705,8 @@ def checkService(request):
                 return dt_get_movie_detail(request)
             elif action == 'get_all_categories':
                 return dt_get_all_categories(request)
+            elif action == 'search_movie':
+                return dt_search_movie_by_name(request)
             else:
                 respData = []
                 resp = sendResponse(action, 406, "Error", respData)
