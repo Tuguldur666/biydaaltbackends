@@ -102,6 +102,10 @@ def dt_add_pet(request):
         respData = []
         resp = sendResponse(action, 1001, f"Request data missing or malformed: {str(e)}", respData)
         return JsonResponse(resp)
+    species_id = int(species_id)
+    breed_id = int(breed_id)
+    age = int(age)
+    posted_by = int(posted_by)
 
     try:
         # Handle the image upload
