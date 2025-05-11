@@ -788,6 +788,7 @@ def dt_get_cats(request):
                 p.description, 
                 p.image, 
                 p.contact_info, 
+                p.is_adopted,
                 p.posted_by,  -- include the poster's user ID
                 s.name AS species_name, 
                 b.name AS breed_name
@@ -827,6 +828,7 @@ def dt_get_dogs(request):
                     p.description, 
                     p.image, 
                     p.contact_info, 
+                    p.is_adopted,
                     p.posted_by,  -- ← Add this line
                     s.name AS species_name, 
                     b.name AS breed_name
