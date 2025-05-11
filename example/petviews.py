@@ -484,6 +484,63 @@ def dt_get_cats(request):
         disconnectDB(myConn)
 
     return JsonResponse(resp)
+# //////////
+
+def dt_get_dogs(request):
+    request_json = json.loads(request.body)
+    action = request_json.get('action')
+
+    try:
+        myConn = connectDB2()
+        cursor = myConn.cursor()
+
+        query = """
+            SELECT p.id, p.name, p.age, p.gender, p.description, p.image, p.contact_info, 
+                   s.name AS species_name, b.name AS breed_name
+            FROM t_pets p
+            JOIN t_species s ON p.species_id = s.id
+            JOIN t_breeds b ON p.breed_id = b.id
+            WHERE s.name = 'Dog'
+        """
+        cursor.execute(query)
+        columns = cursor.description
+        result = [{columns[i][0]: value for i, value in enumerate(row)} for row in cursor.fetchall()]
+        resp = sendResponse(action, 200, "Success", result)
+    except Exception as e:
+        resp = sendResponse(action, 500, f"Database error: {str(e)}", [])
+    finally:
+        cursor.close()
+        disconnectDB(myConn)
+
+    return JsonResponse(resp)
+# ////////////////
+def dt_get_other_animals(request):
+    request_json = json.loads(request.body)
+    action = request_json.get('action')
+
+    try:
+        myConn = connectDB2()
+        cursor = myConn.cursor()
+
+        query = """
+            SELECT p.id, p.name, p.age, p.gender, p.description, p.image, p.contact_info, 
+                   s.name AS species_name, b.name AS breed_name
+            FROM t_pets p
+            JOIN t_species s ON p.species_id = s.id
+            JOIN t_breeds b ON p.breed_id = b.id
+            WHERE s.name NOT IN ('Cat', 'Dog')
+        """
+        cursor.execute(query)
+        columns = cursor.description
+        result = [{columns[i][0]: value for i, value in enumerate(row)} for row in cursor.fetchall()]
+        resp = sendResponse(action, 200, "Success", result)
+    except Exception as e:
+        resp = sendResponse(action, 500, f"Database error: {str(e)}", [])
+    finally:
+        cursor.close()
+        disconnectDB(myConn)
+
+    return JsonResponse(resp)
 
 # Route handler (checkService)
 @csrf_exempt
@@ -530,6 +587,10 @@ def checkService(request):
                 return dt_delete_pet(request)
             elif action == "get_cats":
                 return dt_get_cats(request)
+            elif action == "get_dogs":
+                return dt_get_dogs(request)
+            elif action == "get_other_animals":
+                return dt_get_other_animals(request)
             else:
                 respData = []
                 resp = sendResponse(action, 406, "Error", respData)
