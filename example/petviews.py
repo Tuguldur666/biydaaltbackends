@@ -63,13 +63,13 @@ def dt_login(request):
         cursor = myConn.cursor()
 
         query = """
-            SELECT id, username, passwords FROM t_user WHERE email = %s
+            SELECT id, username, passwords , is_admin FROM t_user WHERE email = %s
         """
         cursor.execute(query, (email,))
         user = cursor.fetchone()
 
         if user and password:
-            respData = [{"user_id": user[0], "username": user[1]}]
+            respData = [{"user_id": user[0], "username": user[1], "is_admin":user[3]}]
             resp = sendResponse(action, 200, "Login successful", respData)
         else:
             respData = []
@@ -144,6 +144,319 @@ def dt_add_pet(request):
         disconnectDB(myConn)
 
     return JsonResponse(resp)
+# ///////////////////
+def dt_get_shelters(request):
+    request_json = json.loads(request.body)
+    action = request_json.get('action') or 'get_shelters'
+
+    try:
+        myConn = connectDB2()
+        cursor = myConn.cursor()
+
+        query = """
+            SELECT shelter_id, shelter_name, address, contact, image
+            FROM public.t_shelters
+            ORDER BY shelter_name
+        """
+        cursor.execute(query)
+        rows = cursor.fetchall()
+
+        shelter_list = []
+        for row in rows:
+            shelter = {
+                "shelter_id": row[0],
+                "shelter_name": row[1],
+                "address": row[2],
+                "contact": row[3],
+                "image": row[4],
+            }
+            shelter_list.append(shelter)
+
+        resp = sendResponse(action, 200, "Shelters retrieved successfully", shelter_list)
+
+    except Exception as e:
+        resp = sendResponse(action, 1006, f"Database error: {str(e)}", [])
+
+    finally:
+        cursor.close()
+        disconnectDB(myConn)
+
+    return JsonResponse(resp)
+
+# //////////
+def dt_add_shelter(request):
+    action = request.POST.get('action')
+
+    try:
+        shelter_name = request.POST.get('shelter_name')
+        address = request.POST.get('address')
+        contact = request.POST.get('contact')
+        image = request.FILES.get('image')
+    except Exception as e:
+        respData = []
+        resp = sendResponse(action, 1001, f"Request data missing or malformed: {str(e)}", respData)
+        return JsonResponse(resp)
+
+    try:
+        # Handle the image upload
+        if image:
+            filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{image.name}"
+            upload_dir = os.path.join(settings.MEDIA_ROOT, 'uploads/shelters')
+            os.makedirs(upload_dir, exist_ok=True)
+
+            file_path = os.path.join(upload_dir, filename)
+            with open(file_path, 'wb+') as destination:
+                for chunk in image.chunks():
+                    destination.write(chunk)
+
+            destinationFilename = "media/uploads/shelters/" + filename
+        else:
+            destinationFilename = ""
+
+        # Connecting to the database
+        myConn = connectDB2()
+        cursor = myConn.cursor()
+
+        # Inserting new shelter data into the database
+        query = """
+            INSERT INTO t_shelters (shelter_name, address, contact, image)
+            VALUES (%s, %s, %s, %s) RETURNING shelter_id
+        """
+        cursor.execute(query, (shelter_name, address, contact, destinationFilename))
+        shelter_id = cursor.fetchone()[0]
+        myConn.commit()
+
+        # Returning success response
+        respData = [{"shelter_id": shelter_id, "shelter_name": shelter_name}]
+        resp = sendResponse(action, 200, "Shelter added successfully", respData)
+
+    except Exception as e:
+        respData = []
+        resp = sendResponse(action, 1006, f"Database error: {str(e)}", respData)
+    finally:
+        cursor.close()
+        disconnectDB(myConn)
+
+    return JsonResponse(resp)
+# //////////
+def dt_update_shelter(request):
+    action = request.POST.get('action')
+
+    try:
+        shelter_id = request.POST.get('shelter_id')
+        shelter_name = request.POST.get('shelter_name')
+        address = request.POST.get('address')
+        contact = request.POST.get('contact')
+        image = request.FILES.get('image')
+    except Exception as e:
+        respData = []
+        resp = sendResponse(action, 1001, f"Request data missing or malformed: {str(e)}", respData)
+        return JsonResponse(resp)
+
+    shelter_id = int(shelter_id)
+
+    try:
+        # Handle the image upload if provided
+        if image:
+            filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{image.name}"
+            upload_dir = os.path.join(settings.MEDIA_ROOT, 'uploads/shelters')
+            os.makedirs(upload_dir, exist_ok=True)
+
+            file_path = os.path.join(upload_dir, filename)
+            with open(file_path, 'wb+') as destination:
+                for chunk in image.chunks():
+                    destination.write(chunk)
+
+            destinationFilename = "media/uploads/shelters/" + filename
+        else:
+            destinationFilename = None
+
+        # Connecting to the database
+        myConn = connectDB2()
+        cursor = myConn.cursor()
+
+        # If an image is provided, update the shelter image, else leave it as is
+        if destinationFilename:
+            query = """
+                UPDATE t_shelters
+                SET shelter_name = %s, address = %s, contact = %s, image = %s
+                WHERE shelter_id = %s
+            """
+            cursor.execute(query, (shelter_name, address, contact, destinationFilename, shelter_id))
+        else:
+            query = """
+                UPDATE t_shelters
+                SET shelter_name = %s, address = %s, contact = %s
+                WHERE shelter_id = %s
+            """
+            cursor.execute(query, (shelter_name, address, contact, shelter_id))
+
+        myConn.commit()
+
+        # Return success response
+        respData = [{"shelter_id": shelter_id, "shelter_name": shelter_name}]
+        resp = sendResponse(action, 200, "Shelter updated successfully", respData)
+
+    except Exception as e:
+        respData = []
+        resp = sendResponse(action, 1006, f"Database error: {str(e)}", respData)
+    finally:
+        cursor.close()
+        disconnectDB(myConn)
+
+    return JsonResponse(resp)
+# ///////////////
+
+def dt_delete_shelter(request):
+    request_json = json.loads(request.body)
+    action = request_json.get('action')
+
+    try:
+        shelter_id = request_json.get('shelter_id')
+    except Exception as e:
+        respData = []
+        resp = sendResponse(action, 1001, f"Request data missing or malformed: {str(e)}", respData)
+        return JsonResponse(resp)
+
+    shelter_id = int(shelter_id)
+
+    try:
+        # Connecting to the database
+        myConn = connectDB2()
+        cursor = myConn.cursor()
+
+        # First, check if the shelter exists
+        cursor.execute("SELECT COUNT(1) FROM t_shelters WHERE shelter_id = %s", (shelter_id,))
+        exists = cursor.fetchone()[0]
+        if not exists:
+            respData = []
+            resp = sendResponse(action, 1005, f"Shelter with ID {shelter_id} does not exist", respData)
+            return JsonResponse(resp)
+
+        # Delete the shelter from the database
+        query = "DELETE FROM t_shelters WHERE shelter_id = %s"
+        cursor.execute(query, (shelter_id,))
+        myConn.commit()
+
+        # Return success response
+        respData = [{"shelter_id": shelter_id}]
+        resp = sendResponse(action, 200, "Shelter deleted successfully", respData)
+
+    except Exception as e:
+        respData = []
+        resp = sendResponse(action, 1006, f"Database error: {str(e)}", respData)
+    finally:
+        cursor.close()
+        disconnectDB(myConn)
+
+    return JsonResponse(resp)
+# //////////
+def dt_get_shelter_by_id(request):
+    request_json = json.loads(request.body)
+    action = request_json.get('action')
+    shelter_id = request_json.get('shelter_id')
+
+    if not shelter_id:
+        respData = []
+        resp = sendResponse(action, 1001, "Shelter ID is required", respData)
+        return JsonResponse(resp)
+
+    try:
+        shelter_id = int(shelter_id)
+
+        myConn = connectDB2()
+        cursor = myConn.cursor()
+
+        # Fetch shelter details by shelter_id
+        query = """
+            SELECT shelter_id, shelter_name, address, contact, image
+            FROM t_shelters
+            WHERE shelter_id = %s
+        """
+        cursor.execute(query, (shelter_id,))
+        shelter = cursor.fetchone()
+
+        if shelter:
+            shelter_data = {
+                'shelter_id': shelter[0],
+                'shelter_name': shelter[1],
+                'address': shelter[2],
+                'contact': shelter[3],
+                'image': shelter[4],
+            }
+            respData = [shelter_data]
+            resp = sendResponse(action, 200, "Shelter fetched successfully", respData)
+        else:
+            respData = []
+            resp = sendResponse(action, 1005, f"Shelter with ID {shelter_id} not found", respData)
+
+    except Exception as e:
+        respData = []
+        resp = sendResponse(action, 1006, f"Database error: {str(e)}", respData)
+    finally:
+        cursor.close()
+        disconnectDB(myConn)
+
+    return JsonResponse(resp)
+# ////////
+
+def dt_get_animals_by_shelter_id(request):
+    request_json = json.loads(request.body)
+    action = request_json.get('action')
+    shelter_id = request_json.get('shelter_id')
+
+    if not shelter_id:
+        respData = []
+        resp = sendResponse(action, 1001, "Shelter ID is required", respData)
+        return JsonResponse(resp)
+
+    try:
+        shelter_id = int(shelter_id)
+
+        myConn = connectDB2()
+        cursor = myConn.cursor()
+
+        # Fetch animals by shelter_id
+        query = """
+            SELECT id, name, species_id, breed_id, age, gender, description, image, contact_info, is_adopted, posted_by, shelter_id
+            FROM t_pets
+            WHERE shelter_id = %s
+        """
+        cursor.execute(query, (shelter_id,))
+        animals = cursor.fetchall()
+
+        if animals:
+            animals_data = [
+                {
+                    'id': animal[0],
+                    'name': animal[1],
+                    'species_id': animal[2],
+                    'breed_id': animal[3],
+                    'age': animal[4],
+                    'gender': animal[5],
+                    'description': animal[6],
+                    'image': animal[7],
+                    'contact_info': animal[8],
+                    'is_adopted': animal[9],
+                    'posted_by': animal[10],
+                    'shelter_id': animal[11],
+                }
+                for animal in animals
+            ]
+            respData = animals_data
+            resp = sendResponse(action, 200, "Animals fetched successfully", respData)
+        else:
+            respData = []
+            resp = sendResponse(action, 1005, f"No animals found for shelter ID {shelter_id}", respData)
+
+    except Exception as e:
+        respData = []
+        resp = sendResponse(action, 1006, f"Database error: {str(e)}", respData)
+    finally:
+        cursor.close()
+        disconnectDB(myConn)
+
+    return JsonResponse(resp)
 
 
 # 4. Get Pet Detail (dt_get_pet_detail)
@@ -163,12 +476,13 @@ def dt_get_pet_detail(request):
         cursor = myConn.cursor()
 
         query = """
-            SELECT p.id, p.name, p.age, p.gender, p.description, p.image, p.contact_info, 
-                   s.name AS species_name, b.name AS breed_name
-            FROM t_pets p
-            JOIN t_species s ON p.species_id = s.id
-            JOIN t_breeds b ON p.breed_id = b.id
-            WHERE p.id = %s
+            SELECT p.id, p.name, p.age, p.gender, p.description, p.image, p.contact_info,
+            s.name AS species_name, b.name AS breed_name, p.posted_by
+                FROM t_pets p
+                JOIN t_species s ON p.species_id = s.id
+                JOIN t_breeds b ON p.breed_id = b.id
+                WHERE p.id = %s
+
         """
         cursor.execute(query, (pet_id,))
         columns = cursor.description
@@ -466,12 +780,22 @@ def dt_get_cats(request):
         cursor = myConn.cursor()
 
         query = """
-            SELECT p.id, p.name, p.age, p.gender, p.description, p.image, p.contact_info, 
-                   s.name AS species_name, b.name AS breed_name
+            SELECT 
+                p.id, 
+                p.name, 
+                p.age, 
+                p.gender, 
+                p.description, 
+                p.image, 
+                p.contact_info, 
+                p.posted_by,  -- include the poster's user ID
+                s.name AS species_name, 
+                b.name AS breed_name
             FROM t_pets p
             JOIN t_species s ON p.species_id = s.id
             JOIN t_breeds b ON p.breed_id = b.id
             WHERE s.name = 'Cat'
+
         """
         cursor.execute(query)
         columns = cursor.description
@@ -495,12 +819,22 @@ def dt_get_dogs(request):
         cursor = myConn.cursor()
 
         query = """
-            SELECT p.id, p.name, p.age, p.gender, p.description, p.image, p.contact_info, 
-                   s.name AS species_name, b.name AS breed_name
-            FROM t_pets p
-            JOIN t_species s ON p.species_id = s.id
-            JOIN t_breeds b ON p.breed_id = b.id
-            WHERE s.name = 'Dog'
+            SELECT 
+                    p.id, 
+                    p.name, 
+                    p.age, 
+                    p.gender, 
+                    p.description, 
+                    p.image, 
+                    p.contact_info, 
+                    p.posted_by,  -- ← Add this line
+                    s.name AS species_name, 
+                    b.name AS breed_name
+                FROM t_pets p
+                JOIN t_species s ON p.species_id = s.id
+                JOIN t_breeds b ON p.breed_id = b.id
+                WHERE s.name = 'Dog'
+
         """
         cursor.execute(query)
         columns = cursor.description
@@ -591,6 +925,14 @@ def checkService(request):
                 return dt_get_dogs(request)
             elif action == "get_other_animals":
                 return dt_get_other_animals(request)
+            elif action == "delete_shelter":
+                return dt_delete_shelter(request)
+            elif action == "get_shelter_by_id":
+                return dt_get_shelter_by_id(request)
+            elif action == "get_animals_by_shelter_id":
+                return dt_get_animals_by_shelter_id(request)
+            elif action == "get_shelters":
+                return dt_get_shelters(request)
             else:
                 respData = []
                 resp = sendResponse(action, 406, "Error", respData)
@@ -609,6 +951,10 @@ def checkService(request):
                 return dt_add_pet(request)
             elif action == "update_pet":
                 return dt_update_pet(request)
+            elif action == "add_shelter":
+                return dt_add_shelter(request)
+            elif action == "update_shelter":
+                return dt_update_shelter(request)
             else:
                 respData = []
                 resp = sendResponse(action, 406, "no registered action", respData)
