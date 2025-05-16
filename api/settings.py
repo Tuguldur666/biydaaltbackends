@@ -166,6 +166,15 @@ def connectDB2():
         port=24306
     )
     return conn
+def connectDB3():
+    conn = psycopg2.connect(
+        host="pg-c90b446-mandakh-5e3d.l.aivencloud.com",
+        dbname="bakery",
+        user="avnadmin",
+        password="AVNS_sCR9Pux3myegi5tLmnQ",
+        port=24306
+    )
+    return conn
 
 
 def disconnectDB(conn):
