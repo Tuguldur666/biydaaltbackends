@@ -398,10 +398,10 @@ def dt_add_cat_movie(request):
 # 
 # Add Wishlist Service
 def dt_add_wishlist(request):
-
-    action = request.POST.get('action')
+    request_json = json.loads(request.body)
+    action = request_json.get('action')
     try:
-        movie_id = request.POST.get('movie_id')
+        movie_id = request_json.get('movie_id')
     except Exception as e:
         respData = []
         resp = sendResponse(action, 1001, f"Request data missing or malformed: {str(e)}", respData)
@@ -436,6 +436,46 @@ def dt_add_wishlist(request):
     return JsonResponse(resp)
 
 # ///
+def dt_remove_wishlist(request):
+    request_json = json.loads(request.body)
+    action = request_json.get('action')
+
+    try:
+        movie_id = request_json.get('movie_id')
+        if not movie_id:
+            raise ValueError("movie_id is required")
+    except Exception as e:
+        respData = []
+        resp = sendResponse(action, 1001, f"Request data missing or malformed: {str(e)}", respData)
+        return JsonResponse(resp)
+
+    try:
+        myConn = connectDB()
+        cursor = myConn.cursor()
+
+        query = """
+            DELETE FROM t_wishlist
+            WHERE movie_id = %s
+            RETURNING id
+        """
+        cursor.execute(query, (movie_id,))
+        deleted = cursor.fetchone()
+        myConn.commit()
+
+        if deleted:
+            resp = sendResponse(action, 200, f"Movie {movie_id} removed from wishlist", [])
+        else:
+            resp = sendResponse(action, 404, f"Movie {movie_id} not found in wishlist", [])
+
+    except Exception as e:
+        respData = []
+        resp = sendResponse(action, 1006, "Database error: " + str(e), respData)
+    finally:
+        cursor.close()
+        disconnectDB(myConn)
+
+    return JsonResponse(resp)
+# ///////////////
 
 def dt_get_all_movies(request):
     request_json = json.loads(request.body)
@@ -709,6 +749,8 @@ def checkService(request):
                 return dt_add_cat_movie(request)
             elif action == 'add_wishlist':
                 return dt_add_wishlist(request)
+            elif action == 'remove_wishlist':
+                return dt_remove_wishlist(request)
             elif action == 'get_all_movies':
                 return dt_get_all_movies(request)
             elif action == 'get_movies_by_cat':
