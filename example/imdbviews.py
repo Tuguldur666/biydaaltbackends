@@ -476,7 +476,50 @@ def dt_remove_wishlist(request):
 
     return JsonResponse(resp)
 # ///////////////
+def dt_get_all_wishlist_movies(request):
+    request_json = json.loads(request.body)
+    action = request_json.get('action')
 
+    try:
+        myConn = connectDB()
+        cursor = myConn.cursor()
+
+        query = """
+            SELECT m.*, 
+                   array_agg(DISTINCT c.cat_name) AS categories,
+                   array_agg(DISTINCT a.fname || ' ' || a.lname || ' (' || ar.char_name || ')') AS actors
+            FROM t_wishlist w
+            JOIN t_movie m ON w.movie_id = m.movie_id
+            LEFT JOIN t_cat_movie cm ON m.movie_id = cm.movie_id
+            LEFT JOIN t_category c ON cm.cat_id = c.cat_id
+            LEFT JOIN t_actor_rel ar ON m.movie_id = ar.movie_id
+            LEFT JOIN t_actor a ON ar.actor_id = a.actor_id
+            GROUP BY m.movie_id
+            ORDER BY m.movie_id DESC;
+        """
+
+        cursor.execute(query)
+        columns = cursor.description
+        result = [
+            {
+                **{columns[i][0]: value for i, value in enumerate(row)},
+                "wishlisted": True 
+            }
+            for row in cursor.fetchall()
+        ]
+
+        resp = sendResponse(action, 200, "Success", result)
+
+    except Exception as e:
+        resp = sendResponse(action, 500, f"Database error: {str(e)}", [])
+
+    finally:
+        cursor.close()
+        disconnectDB(myConn)
+
+    return JsonResponse(resp)
+
+# ////////////////
 def dt_get_all_movies(request):
     request_json = json.loads(request.body)
     action = request_json.get('action')
@@ -485,22 +528,26 @@ def dt_get_all_movies(request):
         cursor = myConn.cursor()
 
         query = """
-                    SELECT m.*, 
-                    array_agg(DISTINCT c.cat_name) AS categories,
-                    array_agg(DISTINCT a.fname || ' ' || a.lname || ' (' || ar.char_name || ')') AS actors
-                FROM t_movie m
-                LEFT JOIN t_cat_movie cm ON m.movie_id = cm.movie_id
-                LEFT JOIN t_category c ON cm.cat_id = c.cat_id
-                LEFT JOIN t_actor_rel ar ON m.movie_id = ar.movie_id
-                LEFT JOIN t_actor a ON ar.actor_id = a.actor_id
-                GROUP BY m.movie_id
-                ORDER BY m.movie_id DESC;
-
+            SELECT 
+                m.*, 
+                array_agg(DISTINCT c.cat_name) AS categories,
+                array_agg(DISTINCT a.fname || ' ' || a.lname || ' (' || ar.char_name || ')') AS actors,
+                CASE WHEN COUNT(w.movie_id) > 0 THEN TRUE ELSE FALSE END AS wishlisted
+            FROM t_movie m
+            LEFT JOIN t_cat_movie cm ON m.movie_id = cm.movie_id
+            LEFT JOIN t_category c ON cm.cat_id = c.cat_id
+            LEFT JOIN t_actor_rel ar ON m.movie_id = ar.movie_id
+            LEFT JOIN t_actor a ON ar.actor_id = a.actor_id
+            LEFT JOIN t_wishlist w ON m.movie_id = w.movie_id
+            GROUP BY m.movie_id
+            ORDER BY m.movie_id DESC;
         """
+
         cursor.execute(query)
         columns = cursor.description
         result = [{columns[i][0]: value for i, value in enumerate(row)} for row in cursor.fetchall()]
         resp = sendResponse(action, 200, "Success", result)
+
     except Exception as e:
         resp = sendResponse(action, 500, f"Database error: {str(e)}", [])
     finally:
@@ -508,6 +555,7 @@ def dt_get_all_movies(request):
         disconnectDB(myConn)
 
     return JsonResponse(resp)
+
 # ///
 
 def dt_get_movies_by_cat(request):
@@ -751,6 +799,8 @@ def checkService(request):
                 return dt_add_wishlist(request)
             elif action == 'remove_wishlist':
                 return dt_remove_wishlist(request)
+            elif action == 'get_all_wishlist':
+                return dt_get_all_wishlist_movies(request)
             elif action == 'get_all_movies':
                 return dt_get_all_movies(request)
             elif action == 'get_movies_by_cat':
