@@ -194,16 +194,25 @@ def dt_add_actor(request):
         myConn = connectDB()
         cursor = myConn.cursor()
 
-        # Convert image to base64
-        image_data = image.read()
-        encoded_image = base64.b64encode(image_data).decode('utf-8')  # store as string
+        filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{image.name}"
+
+        upload_dir = os.path.join(settings.MEDIA_ROOT, 'uploads')
+        os.makedirs(upload_dir, exist_ok=True)
+        
+
+        file_path = os.path.join(upload_dir, filename)
+        with open(file_path, 'wb+') as destination:
+            for chunk in image.chunks():
+                destination.write(chunk)
+                
+        destinationFilename = "media/uploads/" + filename
 
         query = """
             INSERT INTO t_actor (image, fname, lname)
             VALUES (%s, %s, %s)
             RETURNING actor_id
         """
-        cursor.execute(query, (encoded_image, fname, lname))
+        cursor.execute(query, (destinationFilename, fname, lname))
         actor_id = cursor.fetchone()[0]
         myConn.commit()
 
@@ -280,17 +289,18 @@ def dt_add_movie_content(request):
     try:
         myConn = connectDB()
         cursor = myConn.cursor()
-
         filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{image.name}"
-        upload_dir = os.path.join(settings.MEDIA_ROOT, 'uploads/movie_content')
-        os.makedirs(upload_dir, exist_ok=True)
 
+        # 3.2 Determine upload directory (e.g., "media/uploads/")
+        upload_dir = os.path.join(settings.MEDIA_ROOT, 'uploads')
+        os.makedirs(upload_dir, exist_ok=True)
+        
         file_path = os.path.join(upload_dir, filename)
         with open(file_path, 'wb+') as destination:
             for chunk in image.chunks():
                 destination.write(chunk)
-
-        destinationFilename = "media/uploads/movie_content/" + filename
+                
+        destinationFilename = "media/uploads/" + filename
 
         query = """
             INSERT INTO t_movie_content (movie_id, image)
