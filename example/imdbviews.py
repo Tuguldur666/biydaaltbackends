@@ -291,7 +291,6 @@ def dt_add_movie_content(request):
         cursor = myConn.cursor()
         filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{image.name}"
 
-        # 3.2 Determine upload directory (e.g., "media/uploads/")
         upload_dir = os.path.join(settings.MEDIA_ROOT, 'uploads')
         os.makedirs(upload_dir, exist_ok=True)
         
